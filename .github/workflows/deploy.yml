@@ -30,4 +30,5 @@ jobs:
         with:
           name: remo_batch
           runtime: go113
-
+          entry_point: SaveTemperature
+          event_trigger_type: http
