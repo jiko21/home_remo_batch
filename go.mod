@@ -1,1 +1,1 @@
-module home_remo
+module example.com/cloudfunction
