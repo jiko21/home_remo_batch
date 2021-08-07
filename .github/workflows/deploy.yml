@@ -31,3 +31,6 @@ jobs:
           name: remo_batch
           runtime: go113
           entry_point: SaveTemperature
+          event_trigger_type: google.pubsub.topic.publish
+          event_trigger_resource: projects/trans-equator-193007/topics/batch-pubsub
+          event_trigger_service: pubsub.googleapis.com
