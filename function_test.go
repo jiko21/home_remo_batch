@@ -10,7 +10,7 @@ import (
 
 func TestSaveTemperature(t *testing.T) {
 	tests := []struct {
-		data string
+		data     string
 		expected string
 	}{
 		{data: "{}", expected: "Hello, {}!\n"},
@@ -27,7 +27,6 @@ func TestSaveTemperature(t *testing.T) {
 		}
 
 		SaveTemperature(context.Background(), m)
-
 
 		w.Close()
 
