@@ -1,37 +1,22 @@
 // Package p contains an HTTP Cloud Function.
-package p
+package function
 
 import (
-	"encoding/json"
-	"fmt"
-	"html"
-	"io"
+	"context"
 	"log"
-	"net/http"
 )
+
+type PubSubMessage struct {
+	Data []byte `json:"data"`
+}
 
 // HelloWorld prints the JSON encoded "message" field in the body
 // of the request or "Hello, World!" if there isn't one.
-func SaveTemperature(w http.ResponseWriter, r *http.Request) {
-	var d struct {
-		Message string `json:"message"`
+func SaveTemperature(ctx context.Context, m PubSubMessage) error {
+	name := string(m.Data) // Automatically decoded from base64.
+	if name == "" {
+		name = "World"
 	}
-
-	if err := json.NewDecoder(r.Body).Decode(&d); err != nil {
-		switch err {
-		case io.EOF:
-			fmt.Fprint(w, "Sample!")
-			return
-		default:
-			log.Printf("json.NewDecoder: %v", err)
-			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-			return
-		}
-	}
-
-	if d.Message == "" {
-		fmt.Fprint(w, "This is test!")
-		return
-	}
-	fmt.Fprint(w, html.EscapeString(d.Message))
+	log.Printf("Hello, %s!", name)
+	return nil
 }
