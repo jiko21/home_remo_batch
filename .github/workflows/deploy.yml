@@ -34,4 +34,4 @@ jobs:
           event_trigger_type: google.pubsub.topic.publish
           event_trigger_resource: projects/trans-equator-193007/topics/batch-pubsub
           event_trigger_service: pubsub.googleapis.com
-          env_vars: REMO_API_TOKEN=${{ secrets.REMO_API_TOKEN }}
+          env_vars: SECRET_NAME=${{ secrets.SECRET_NAME }}
