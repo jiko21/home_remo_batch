@@ -3,9 +3,11 @@ package function
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
+	_ "github.com/go-sql-driver/mysql"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -19,6 +21,13 @@ type PubSubMessage struct {
 
 var accessToken = os.Getenv("REMO_API_TOKEN")
 var apiUrl = "https://api.nature.global/1/devices"
+
+var (
+	dbUser                 = os.Getenv("DB_USER")
+	dbPwd                  = os.Getenv("DB_PASS")
+	instanceConnectionName = os.Getenv("INSTANCE_CONNECTION_NAME")
+	dbName                 = os.Getenv("DB_NAME")
+)
 
 type SensorValue struct {
 	Val       float64   `json:"val"`
@@ -58,6 +67,16 @@ func GetTemperature(url, token string) ([]Response, error) {
 	return *body, err
 }
 
+func SaveData(db *sql.DB, response Response) error {
+	defer db.Close()
+	ins, err := db.Prepare("INSERT INTO temperature(remo_id, measured_at, value) VALUES(?, ?, ?)")
+	if err != nil {
+		return err
+	}
+	_, err = ins.Exec(response.Id, response.NewestEvents.Te.CreatedAt, response.NewestEvents.Te.Val)
+	return err
+}
+
 /**
  * entry point of cloud functions
  */
@@ -66,6 +85,20 @@ func SaveTemperature(ctx context.Context, m PubSubMessage) error {
 	if err != nil {
 		log.Panicf("Error: %v", err)
 	}
-	log.Printf("Hello, %v", body[0])
+	log.Printf("correctly get, %v", body[0])
+	socketDir, isSet := os.LookupEnv("DB_SOCKET_DIR")
+	if !isSet {
+		socketDir = "/cloudsql"
+	}
+	uri := fmt.Sprintf("%s:%s@unix(/%s/%s)/%s?parseTime=true", dbUser, dbPwd, socketDir, instanceConnectionName, dbName)
+	db, err := sql.Open("mysql", uri)
+	if err != nil {
+		return err
+	}
+	err = SaveData(db, body[0])
+	if err != nil {
+		log.Panicf("Error: %v", err)
+	}
+	log.Printf("correctly saved, %v", body[0])
 	return nil
 }
