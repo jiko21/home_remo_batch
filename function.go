@@ -2,12 +2,14 @@
 package function
 
 import (
+	secretmanager "cloud.google.com/go/secretmanager/apiv1"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
+	secretmanagerpb "google.golang.org/genproto/googleapis/cloud/secretmanager/v1"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -19,15 +21,7 @@ type PubSubMessage struct {
 	Data []byte `json:"data"`
 }
 
-var accessToken = os.Getenv("REMO_API_TOKEN")
 var apiUrl = "https://api.nature.global/1/devices"
-
-var (
-	dbUser                 = os.Getenv("DB_USER")
-	dbPwd                  = os.Getenv("DB_PASS")
-	instanceConnectionName = os.Getenv("INSTANCE_CONNECTION_NAME")
-	dbName                 = os.Getenv("DB_NAME")
-)
 
 type SensorValue struct {
 	Val       float64   `json:"val"`
@@ -42,6 +36,14 @@ type Response struct {
 	Name         string `json:"name"`
 	Id           string `json:"id"`
 	NewestEvents Events `json:"newest_events"`
+}
+
+type Secret struct {
+	RemoApiToken           string `json:"REMO_API_TOKEN"`
+	DbUser                 string `json:"DB_USER"`
+	DbPass                 string `json:"DB_PASS"`
+	InstanceConnectionName string `json:"INSTANCE_CONNECTION_NAME"`
+	DbName                 string `json:"DB_NAME"`
 }
 
 /**
@@ -81,7 +83,27 @@ func SaveData(db *sql.DB, response Response) error {
  * entry point of cloud functions
  */
 func SaveTemperature(ctx context.Context, m PubSubMessage) error {
-	body, err := GetTemperature(apiUrl, accessToken)
+	// secretの取得
+	secretName := os.Getenv("SECRET_NAME")
+	client, err := secretmanager.NewClient(ctx)
+	if err != nil {
+		log.Panicf("Error: %v", err)
+	}
+	req := &secretmanagerpb.AccessSecretVersionRequest{
+		Name: secretName,
+	}
+	result, err := client.AccessSecretVersion(ctx, req)
+	if err != nil {
+		log.Panicf("Error: %v", err)
+	}
+
+	secrets := new(Secret)
+	err = json.Unmarshal(result.Payload.Data, secrets)
+	if err != nil {
+		log.Panicf("Error: %v", err)
+	}
+
+	body, err := GetTemperature(apiUrl, secrets.RemoApiToken)
 	if err != nil {
 		log.Panicf("Error: %v", err)
 	}
@@ -90,7 +112,7 @@ func SaveTemperature(ctx context.Context, m PubSubMessage) error {
 	if !isSet {
 		socketDir = "/cloudsql"
 	}
-	uri := fmt.Sprintf("%s:%s@unix(/%s/%s)/%s?parseTime=true", dbUser, dbPwd, socketDir, instanceConnectionName, dbName)
+	uri := fmt.Sprintf("%s:%s@unix(/%s/%s)/%s?parseTime=true", secrets.DbUser, secrets.DbPass, socketDir, secrets.InstanceConnectionName, secrets.DbName)
 	db, err := sql.Open("mysql", uri)
 	if err != nil {
 		return err
