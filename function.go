@@ -2,19 +2,18 @@
 package function
 
 import (
-	secretmanager "cloud.google.com/go/secretmanager/apiv1"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
-	_ "github.com/go-sql-driver/mysql"
-	secretmanagerpb "google.golang.org/genproto/googleapis/cloud/secretmanager/v1"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"time"
+
+	_ "github.com/go-sql-driver/mysql"
 )
 
 type PubSubMessage struct {
@@ -83,27 +82,8 @@ func SaveData(db *sql.DB, response Response) error {
  * entry point of cloud functions
  */
 func SaveTemperature(ctx context.Context, m PubSubMessage) error {
-	// secretの取得
-	secretName := os.Getenv("SECRET_NAME")
-	client, err := secretmanager.NewClient(ctx)
-	if err != nil {
-		log.Panicf("Error: %v", err)
-	}
-	req := &secretmanagerpb.AccessSecretVersionRequest{
-		Name: secretName,
-	}
-	result, err := client.AccessSecretVersion(ctx, req)
-	if err != nil {
-		log.Panicf("Error: %v", err)
-	}
-
-	secrets := new(Secret)
-	err = json.Unmarshal(result.Payload.Data, secrets)
-	if err != nil {
-		log.Panicf("Error: %v", err)
-	}
-
-	body, err := GetTemperature(apiUrl, secrets.RemoApiToken)
+	remoApiToken := os.Getenv("REMO_API_TOKEN")
+	body, err := GetTemperature(apiUrl, remoApiToken)
 	if err != nil {
 		log.Panicf("Error: %v", err)
 	}
@@ -112,7 +92,11 @@ func SaveTemperature(ctx context.Context, m PubSubMessage) error {
 	if !isSet {
 		socketDir = "/cloudsql"
 	}
-	uri := fmt.Sprintf("%s:%s@unix(/%s/%s)/%s?parseTime=true", secrets.DbUser, secrets.DbPass, socketDir, secrets.InstanceConnectionName, secrets.DbName)
+	DbUser := os.Getenv("DB_USER")
+	DbPass := os.Getenv("DB_PASS")
+	InstanceConnectionName := os.Getenv("INSTANCE_CONNECTION_NAME")
+	DbName := os.Getenv("DB_NAME")
+	uri := fmt.Sprintf("%s:%s@unix(/%s/%s)/%s?parseTime=true", DbUser, DbPass, socketDir, InstanceConnectionName, DbName)
 	db, err := sql.Open("mysql", uri)
 	if err != nil {
 		return err

@@ -34,4 +34,4 @@ jobs:
           event_trigger_type: google.pubsub.topic.publish
           event_trigger_resource: projects/trans-equator-193007/topics/batch-pubsub
           event_trigger_service: pubsub.googleapis.com
-          env_vars: SECRET_NAME=${{ secrets.SECRET_NAME }}
+          secret_environment_variables: 'REMO_API_TOKEN=projects/459033408430/secrets/REMO_API_TOKEN,DB_USER=projects/459033408430/secrets/DB_USER,DB_PASS=projects/459033408430/secrets/DB_PASS,INSTANCE_CONNECTION_NAME=projects/459033408430/secrets/INSTANCE_CONNECTION_NAME,DB_NAME=projects/459033408430/secrets/DB_NAME'
